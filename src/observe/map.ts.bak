@@ -1,0 +1,106 @@
+import { OnChange } from './event';
+import { CowValuePath, CowProxy, CowProxyState, CowStateSymbol, removeChild } from './state';
+import { UndoManager } from './undo';
+
+export class MapProxy<K, V>
+  extends Map<K, V>
+  implements CowProxy<Map<K, V>> {
+  public get size() {
+    return this[CowStateSymbol].target.size;
+  }
+
+  public [CowStateSymbol]: CowProxyState<Map<K, V>>;
+
+  public constructor(target: Map<K, V>, undoManager: UndoManager, parent?: CowValuePath) {
+    super();
+    this[CowStateSymbol] = {
+      undoManager,
+      target,
+      parents: new Set(),
+    };
+    if (parent) {
+      this[CowStateSymbol].parents.add(parent);
+    }
+  }
+
+  public clear() {
+    const entries = Array.from(this[CowStateSymbol].target.entries());
+    for (const [key] of entries) {
+      removeChild(this[CowStateSymbol], key);
+    }
+    this[CowStateSymbol].target.clear();
+    this[CowStateSymbol].undoManager.addPatch({
+      info: {
+      },
+      apply: () => this[CowStateSymbol].target.clear(),
+      undo: () => {
+        for (const [key, value] of entries) {
+          this[CowStateSymbol].target.set(key, value);
+        }
+      },
+    });
+  }
+
+  public entries() {
+    return this[CowStateSymbol].target.entries();
+  }
+
+  public set(key: K, value: V): this {
+    const hasKey = this[CowStateSymbol].target.has(key);
+    const oldValue = this[CowStateSymbol].target.get(key);
+    this[CowStateSymbol].target.set(key, value);
+    this[CowStateSymbol].undoManager.addPatch({
+      apply: () => this[CowStateSymbol].target.set(key, value),
+      undo: () => {
+        if (hasKey) {
+          this[CowStateSymbol].target.set(key, oldValue!);
+        } else {
+          this[CowStateSymbol].target.delete(key);
+        }
+      }
+    });
+    return this;
+  }
+
+  public delete(key: K) {
+    const oldValue = this[CowStateSymbol].target.get(key);
+    const hasKey = this[CowStateSymbol].target.delete(key);
+
+    if (hasKey) {
+      this[CowStateSymbol].undoManager.addPatch({
+        apply: () => this[CowStateSymbol].target.delete(key),
+        undo: () => {
+          this[CowStateSymbol].target.set(key, oldValue!);
+        }
+      });
+    }
+
+    return hasKey;
+  }
+
+  public get(key: K) {
+    return this[CowStateSymbol].target.get(key);
+  }
+
+  public has(key: K) {
+    return this[CowStateSymbol].target.has(key);
+  }
+
+  public forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void) {
+    this[CowStateSymbol].target.forEach(callbackfn);
+  }
+
+  public keys() {
+    return this[CowStateSymbol].target.keys();
+  }
+
+  public values() {
+    return this[CowStateSymbol].target.values();
+  }
+
+  public [OnChange]() {
+    return () => {
+
+    };
+  }
+}
