@@ -1,54 +1,54 @@
-import { createObservable, isObservable } from '.';
+import { isObservable } from '.';
 import { ArrayHooks } from './array';
-import { OnChange } from './event';
-import { addChild, CowChangedEventHandler, CowProxy, CowProxyState, CowStateSymbol, removeChild } from './state';
-import { UndoManager } from './undo';
+import { ScopeManager } from './scope';
+import { CowProxy, ProxyState, StateSymbol } from './state';
 
-export interface CowObjectProxyState<T>
-  extends CowProxyState<T> {
-  events: Set<CowChangedEventHandler>;
-
+export interface ObjectProxyState<T>
+  extends ProxyState<T> {
   hooks?: any;
 }
 
-export function createObservableObject<T extends object>(
+export function observe<T extends object>(
   target: T,
-  undoManager: UndoManager
+  scopeManager: ScopeManager
 ): CowProxy<T> {
-  const state: CowObjectProxyState<T> = {
-    undoManager,
+  const state: ObjectProxyState<T> = {
+    scopeManager,
     target,
-    pathes: new Set(),
+    path: [],
     children: new Map(),
-    events: new Set(),
+    dispose: undefined as any,
   };
 
   if (Array.isArray(target)) {
     state.hooks = new ArrayHooks(state as any);
   }
 
-  const proxy = new Proxy(state, {
+  const handler: ProxyHandler<ObjectProxyState<T>> = {
     defineProperty(_target, _p) {
       throw new Error('');
     },
     deleteProperty(state, p: keyof T) {
-      removeChild(state, p);
+      state.children.get(p)?.dispose();
+      state.children.delete(p);
+
+      const oldValue = state.target[p];
       delete state.target[p];
+
+      state.scopeManager.actionManager.addDiff({
+        path: [...state.path, p],
+        type: 'Object.set',
+        apply() { handler.deleteProperty!(state, p); },
+        undo() { handler.set!(state, p, oldValue, undefined); }
+      });
       return true;
     },
-    get(state, p: keyof T | typeof CowStateSymbol) {
-      if (p === CowStateSymbol) {
+    get(state, p: keyof T | typeof StateSymbol) {
+      if (p === StateSymbol) {
         return state;
       }
 
-      if (p === OnChange) {
-        return (handler: CowChangedEventHandler) => {
-          state.events.add(handler);
-          return () => {
-            state.events.delete(handler);
-          };
-        };
-      }
+      state.scopeManager.observerManager.addDependency([...state.path, p]);
 
       if (state.hooks) {
         if (p in state.hooks) {
@@ -56,22 +56,22 @@ export function createObservableObject<T extends object>(
         }
       }
 
-      const oldProxy = state.children.get(p);
-      if (oldProxy) {
-        return oldProxy;
+      const child = state.children.get(p);
+      if (child) {
+        return child;
       }
 
       const value = state.target[p];
       if (isObservable(value)) {
-        const newChild = createObservableObject(value, state.undoManager);
-        addChild(state, p, newChild[CowStateSymbol]);
+        const newChild = observe(value, state.scopeManager);
+        newChild[StateSymbol].path.push(p);
         return newChild;
       }
 
       return value;
     },
     getOwnPropertyDescriptor(state, p) {
-      return Reflect.getOwnPropertyDescriptor(state, p);
+      return Reflect.getOwnPropertyDescriptor(state.target, p);
     },
     getPrototypeOf(state) {
       return Reflect.getPrototypeOf(state.target);
@@ -83,29 +83,30 @@ export function createObservableObject<T extends object>(
       return Reflect.ownKeys(state.target);
     },
     set(state, p: keyof T, value) {
-      // const oldValue = state.target[p];
-      removeChild(state, p);
+      state.children.get(p)?.dispose();
+      state.children.delete(p);
 
-      if (value[CowStateSymbol]) {
-        addChild(state, p, value[CowStateSymbol]);
-        state.target[p] = value[CowStateSymbol].value;
-      } else {
-        state.target[p] = value;
+      if (value[StateSymbol]) {
+        value = value[StateSymbol].value;
       }
 
-      // state.undoManager.addPatch({
-      //   apply() { state.target[p] = value; },
-      //   undo() {
-      //     proxy[p] = oldValue;
-      //   },
-      // });
+      const oldValue = state.target[p];
+      state.target[p] = value;
 
+      state.scopeManager.actionManager.addDiff({
+        path: [...state.path, p],
+        type: 'Object.set',
+        apply() { handler.set!(state, p, value, undefined); },
+        undo() { handler.set!(state, p, oldValue, undefined); }
+      });
       return true;
     },
     setPrototypeOf(_target, _v) {
-      throw new Error('can not set prototype of a cow object');
+      throw new Error('can not set prototype of a proxy');
     },
-  }) as unknown as CowProxy<T>;
+  };
+  const { proxy, revoke } = Proxy.revocable(state, handler);
 
-  return proxy;
+  state.dispose = revoke;
+  return proxy as unknown as CowProxy<T>;
 }

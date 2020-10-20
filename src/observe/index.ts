@@ -1,7 +1,5 @@
-import { createObservableObject } from './object';
-import { UndoManager } from './undo';
-
-export * from './undo';
+export * from './scope';
+export * from './object';
 
 export function isObservable(target: any): target is object {
   if (target === undefined || target === null) {
@@ -22,19 +20,4 @@ export function isObservable(target: any): target is object {
   }
 
   return true;
-}
-
-export function createObservable<T extends object>(
-  target: T,
-  undoManager: UndoManager,
-): T {
-  if (target instanceof Map) {
-    throw new Error('Map is not supported');
-  }
-
-  // if (target instanceof Set) {
-  //   throw new Error('Set is not supported');
-  // }
-
-  return createObservableObject(target as unknown as object, undoManager) as unknown as T;
 }

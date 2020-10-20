@@ -1,4 +1,4 @@
-import { createObservable, isObservable, UndoManager } from '.';
+import { isObservable } from '.';
 
 interface Page {
   title: string;
@@ -74,17 +74,4 @@ describe('Observable', () => {
       expect(isObservable([42])).toBe(true);
     });
   });
-
-  // describe('Object', () => {
-  //   it('should add undo item', () => {
-  //     const undoManager = new UndoManager();
-  //     const cow = createObservable(value, undoManager);
-
-  //     undoManager.executeTransaction(() => {
-  //       cow.type = 'container';
-  //     });
-
-  //     expect(undoManager.canUndo).toBe(true);
-  //   });
-  // });
 });
