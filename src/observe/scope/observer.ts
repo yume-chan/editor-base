@@ -4,34 +4,31 @@ import { Path } from "../state";
 export type Observer = () => void;
 
 export class DependencyTree<T> {
-  private values = new Set<T>();
   private map = new Map<T, DependencyTree<T>>();
 
   public get size() {
-    return this.values.size;
+    return this.map.size;
   }
 
   public add(list: T[]) {
     const [first, ...rest] = list;
-    this.values.add(first);
-
-    if (rest.length === 0) {
-      return;
-    }
 
     let child = this.map.get(first);
     if (!child) {
       child = new DependencyTree<T>();
       this.map.set(first, child);
     }
-    child.add(rest);
+
+    if (rest.length !== 0) {
+      child.add(rest);
+    }
   }
 
   public has(list: T[]): boolean {
     const [first, ...rest] = list;
 
     if (rest.length === 0) {
-      return this.values.has(first);
+      return this.map.has(first);
     }
 
     let child = this.map.get(first);

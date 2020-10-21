@@ -64,6 +64,9 @@ export function observe<T extends object>(
       const value = state.target[p];
       if (isObservable(value)) {
         const newChild = observe(value, state.scopeManager);
+        for (const segment of state.path) {
+          newChild[StateSymbol].path.push(segment);
+        }
         newChild[StateSymbol].path.push(p);
         return newChild;
       }
@@ -86,7 +89,7 @@ export function observe<T extends object>(
       state.children.get(p)?.dispose();
       state.children.delete(p);
 
-      if (value[StateSymbol]) {
+      if (value?.[StateSymbol]) {
         value = value[StateSymbol].value;
       }
 

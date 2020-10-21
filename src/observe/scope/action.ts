@@ -96,9 +96,7 @@ export class ActionManager {
   }
 
   /** @internal */ deleteObserver(observer: ObserverState) {
-    for (const observer of this.current.observers) {
-
-    }
+    this.current.observers.delete(observer);
   }
 
   /** @internal */ addDiff(diff: Diff) {
