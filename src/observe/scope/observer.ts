@@ -67,10 +67,6 @@ export class ObserverManager {
   }
 
   /** @internal */ addDependency(object: unknown, path: Path) {
-    if (!this.current) {
-      return;
-    }
-
-    this.current.dependencies.add(object, path);
+    this.current?.dependencies.add(object, path);
   }
 }
