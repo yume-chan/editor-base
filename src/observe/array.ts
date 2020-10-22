@@ -10,6 +10,7 @@ export class ArrayHooks<T extends unknown[]> {
   public splice = (start: number, deleteCount: number, ...items: any[]): any[] => {
     const deletedItems = this.state.target.splice(start, deleteCount, ...items);
     this.state.scopeManager.actionManager.addDiff({
+      target: this.state.root,
       type: 'Array.splice',
       path: this.state.path,
       apply: () => this.state.target.splice(start, deleteCount, ...items),

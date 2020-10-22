@@ -1,33 +1,31 @@
 import { ScopeManager } from ".";
 import { Diff, mergeDiff } from "../diff";
-import { Path } from "../state";
-import { DependencyTree, Observer, ObserverManager, ObserverState } from "./observer";
+import { Observer, ObserverCallback } from "./observer";
+import { ObjectPaths } from "./pathTrie";
 
 interface ActionState {
   global: boolean;
 
   diffList: Diff[];
 
-  observers: Set<ObserverState>;
+  diffPaths: ObjectPaths;
+
+  observers: Set<Observer>;
 }
 
 function invokeObserversByDependency(
-  observers: Set<ObserverState>,
-  paths: Path[],
-  observerManager: ObserverManager
+  observers: Set<Observer>,
+  diffPaths: ObjectPaths
 ) {
-  let invoked = new Set<Observer>();
+  let invoked = new Set<ObserverCallback>();
   for (const observer of observers) {
     if (invoked.has(observer.callback)) {
       continue;
     }
 
-    for (const path of paths) {
-      if (observer.dependencies.has(path)) {
-        observerManager.rerun(observer);
-        invoked.add(observer.callback);
-        break;
-      }
+    if (diffPaths.isSameOrAncestorOf(observer.dependencies)) {
+      observer.callback();
+      invoked.add(observer.callback);
     }
   }
 }
@@ -41,6 +39,7 @@ export class ActionManager {
     global: true,
     observers: new Set(),
     diffList: [],
+    diffPaths: new ObjectPaths(),
   };
 
   public constructor(scopeManager: ScopeManager) {
@@ -54,6 +53,7 @@ export class ActionManager {
       global: false,
       diffList: [],
       observers: new Set(),
+      diffPaths: new ObjectPaths(),
     };
     this.current = state;
 
@@ -68,16 +68,27 @@ export class ActionManager {
         this.scopeManager.undoManager.push(state.diffList);
       }
 
-      if (state.diffList.length && this.current.observers.size) {
+      if (state.diffPaths.size && this.current.observers.size) {
+        console.group('action diff');
+        for (const item of state.diffPaths.toArray()) {
+          console.log(item[0], item[1]);
+        }
+        console.groupEnd();
+
         invokeObserversByDependency(
           this.current.observers,
-          state.diffList.map(diff => diff.path),
-          this.scopeManager.observerManager
+          state.diffPaths
         );
       }
 
       for (const observer of state.observers) {
         this.current.observers.add(observer);
+      }
+
+      if (!this.current.global) {
+        for (const diff of state.diffList) {
+          this.addDiff(diff);
+        }
       }
     };
   }
@@ -91,11 +102,11 @@ export class ActionManager {
     }
   }
 
-  /** @internal */ addObserver(observer: ObserverState) {
+  /** @internal */ addObserver(observer: Observer) {
     this.current.observers.add(observer);
   }
 
-  /** @internal */ deleteObserver(observer: ObserverState) {
+  /** @internal */ deleteObserver(observer: Observer) {
     this.current.observers.delete(observer);
   }
 
@@ -105,10 +116,13 @@ export class ActionManager {
     }
 
     this.current.diffList = mergeDiff(this.current.diffList, diff);
+    this.current.diffPaths.add(diff.target, diff.path, true);
+
+    const paths = new ObjectPaths();
+    paths.add(diff.target, diff.path);
     invokeObserversByDependency(
       this.current.observers,
-      [diff.path],
-      this.scopeManager.observerManager
+      paths
     );
   }
 }

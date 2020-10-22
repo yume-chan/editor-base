@@ -1,73 +1,62 @@
 import { ScopeManager } from ".";
 import { Path } from "../state";
+import { ObjectPaths } from "./pathTrie";
 
-export type Observer = () => void;
+export type ObserverCallback = () => void;
 
-export class DependencyTree<T> {
-  private map = new Map<T, DependencyTree<T>>();
+export interface Observer {
+  dependencies: ObjectPaths;
 
-  public get size() {
-    return this.map.size;
-  }
+  callback: ObserverCallback;
 
-  public add(list: T[]) {
-    const [first, ...rest] = list;
+  track<T>(fn: () => T): T;
 
-    let child = this.map.get(first);
-    if (!child) {
-      child = new DependencyTree<T>();
-      this.map.set(first, child);
-    }
-
-    if (rest.length !== 0) {
-      child.add(rest);
-    }
-  }
-
-  public has(list: T[]): boolean {
-    const [first, ...rest] = list;
-
-    if (rest.length === 0) {
-      return this.map.has(first);
-    }
-
-    let child = this.map.get(first);
-    if (!child) {
-      return false;
-    }
-    return child.has(rest);
-  }
-}
-
-export interface ObserverState {
-  dependencies: DependencyTree<PropertyKey>;
-
-  callback: Observer;
+  dispose(): void;
 }
 
 export class ObserverManager {
   private scopeManager: ScopeManager;
 
-  private stack: ObserverState[] = [];
+  private stack: Observer[] = [];
 
-  private current: ObserverState | undefined;
+  private current: Observer | undefined;
 
   public constructor(scopeManager: ScopeManager) {
     this.scopeManager = scopeManager;
   }
 
-  /** @internal */ rerun(state: ObserverState) {
+  public createObserver(callback: ObserverCallback): Observer {
+    const observer: Observer = {
+      dependencies: new ObjectPaths(),
+      callback,
+      track: <T extends unknown>(fn: () => T) => {
+        return this.track(observer, fn);
+      },
+      dispose: () => {
+        this.scopeManager.actionManager.deleteObserver(observer);
+      },
+    };
+    return observer;
+  }
+
+  private track<T>(state: Observer, fn: () => T): T {
     if (this.current) {
       this.stack.push(this.current);
     }
 
-    state.dependencies = new DependencyTree();
+    state.dependencies.clear();
     this.current = state;
 
     try {
-      state.callback();
+      return fn();
     } finally {
       if (state.dependencies.size) {
+        console.group('track finished:', (fn as any).displayName);
+        for (const item of state.dependencies.toArray()) {
+          console.log(item[0], item[1]);
+        }
+        console.groupEnd();
+
         this.scopeManager.actionManager.addObserver(state);
       } else {
         this.scopeManager.actionManager.deleteObserver(state);
@@ -75,24 +64,13 @@ export class ObserverManager {
 
       this.current = this.stack.pop();
     }
-
-    return () => {
-      this.scopeManager.actionManager.deleteObserver(state);
-    };
   }
 
-  public execute(observer: Observer) {
-    return this.rerun({
-      dependencies: undefined as unknown as DependencyTree<string>,
-      callback: observer,
-    });
-  }
-
-  /** @internal */ addDependency(dependency: Path) {
+  /** @internal */ addDependency(object: unknown, path: Path) {
     if (!this.current) {
       return;
     }
 
-    this.current.dependencies.add(dependency);
+    this.current.dependencies.add(object, path);
   }
 }

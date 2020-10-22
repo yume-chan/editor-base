@@ -1,6 +1,8 @@
 import { Path } from './state';
 
 export interface Diff {
+  target: unknown;
+
   path: Path;
 
   type: string;

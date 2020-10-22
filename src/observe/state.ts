@@ -2,23 +2,24 @@ import { ScopeManager } from './scope';
 
 export type Path = PropertyKey[];
 
-export interface ProxyState<T> {
+export interface ObserveProxyState<T> {
   scopeManager: ScopeManager;
+
+  root: unknown;
 
   target: T;
 
   path: Path;
 
-  children: Map<PropertyKey, ProxyState<any>>;
+  children: Map<PropertyKey, ObserveProxy<unknown>>;
 
   dispose: () => void;
 }
 
-export const StateSymbol = Symbol.for('cow-state');
+export const ObserveProxyStateSymbol = Symbol.for('proxy-state');
 
-export interface ProxyExtension<T> {
-  [StateSymbol]: ProxyState<T>;
+export interface ObserveProxyExtension<T> {
+  [ObserveProxyStateSymbol]: ObserveProxyState<T>;
 }
 
-export type CowProxy<T> = T &
-  (T extends object ? ProxyExtension<T> : never);
+export type ObserveProxy<T> = T & ObserveProxyExtension<T>;
