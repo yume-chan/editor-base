@@ -8,6 +8,13 @@ export class PathTrie {
   public add(path: PropertyKey[], collapse = false) {
     const [first, ...rest] = path;
 
+    if (collapse &&
+      rest.length &&
+      this.map.has(first) &&
+      !this.map.get(first)!.size) {
+      return;
+    }
+
     let child = this.map.get(first);
     if (!child) {
       child = new PathTrie();
@@ -15,9 +22,6 @@ export class PathTrie {
     }
 
     if (rest.length) {
-      if (!child.size && collapse) {
-        return;
-      }
       child.add(rest);
     } else if (collapse) {
       child.clear();

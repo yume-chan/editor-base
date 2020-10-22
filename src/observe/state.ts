@@ -7,6 +7,8 @@ export interface ObserveProxyState<T> {
 
   root: unknown;
 
+  rootProxy: ObserveProxy<unknown>;
+
   target: T;
 
   path: Path;

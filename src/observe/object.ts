@@ -8,12 +8,21 @@ export interface ObjectProxyState<T>
   hooks?: any;
 }
 
+function getValueFromPath(rootProxy: unknown, path: PropertyKey[]): any {
+  let value = rootProxy as any;
+  for (const item of path) {
+    value = value[item];
+  }
+  return value;
+}
+
 export function observe<T extends object>(
   target: T,
   scopeManager: ScopeManager
 ): ObserveProxy<T> {
   const state: ObjectProxyState<T> = {
     root: target,
+    rootProxy: undefined as any,
     scopeManager,
     target,
     path: [],
@@ -40,8 +49,14 @@ export function observe<T extends object>(
         target: state.root,
         path: [...state.path, p],
         type: 'Object.set',
-        apply() { handler.deleteProperty!(state, p); },
-        undo() { handler.set!(state, p, oldValue, undefined); }
+        apply() {
+          const currentValue = getValueFromPath(state.rootProxy, state.path);
+          delete currentValue[p];
+        },
+        undo() {
+          const currentValue = getValueFromPath(state.rootProxy, state.path);
+          currentValue[p] = oldValue;
+        },
       });
       return true;
     },
@@ -66,9 +81,10 @@ export function observe<T extends object>(
       const value = state.target[p];
       if (isObservable(value)) {
         const newChild = observe(value, state.scopeManager);
-        newChild[ObserveProxyStateSymbol].root = state.root;
-        newChild[ObserveProxyStateSymbol].path = state.path.slice();
-        newChild[ObserveProxyStateSymbol].path.push(p);
+        const childState = newChild[ObserveProxyStateSymbol];
+        childState.root = state.root;
+        childState.rootProxy = state.rootProxy;
+        childState.path = [...state.path, p];
         state.children.set(p, newChild);
         return newChild;
       }
@@ -95,7 +111,7 @@ export function observe<T extends object>(
       }
 
       if (value?.[ObserveProxyStateSymbol]) {
-        value = value[ObserveProxyStateSymbol].value;
+        value = value[ObserveProxyStateSymbol].target;
       }
 
       const oldValue = state.target[p];
@@ -105,12 +121,16 @@ export function observe<T extends object>(
         target: state.root,
         path: [...state.path, p],
         type: 'Object.set',
-        apply() { handler.set!(state, p, value, undefined); },
+        apply() {
+          const currentValue = getValueFromPath(state.rootProxy, state.path);
+          currentValue[p] = value;
+        },
         undo() {
+          const currentValue = getValueFromPath(state.rootProxy, state.path);
           if (hasOldValue) {
-            handler.set!(state, p, oldValue, undefined);
+            currentValue[p] = oldValue;
           } else {
-            handler.deleteProperty!(state, p);
+            delete currentValue[p];
           }
         }
       });
@@ -121,7 +141,8 @@ export function observe<T extends object>(
     },
   };
   const { proxy, revoke } = Proxy.revocable(state, handler);
-
+  state.rootProxy = proxy as any;
   state.dispose = revoke;
+
   return proxy as unknown as ObserveProxy<T>;
 }
