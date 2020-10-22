@@ -1,18 +1,20 @@
-# typescript-package-scaffold
+# Editor Base
 
-*DESCRIPTION TO BE FILLED*
+Common building parts for any editor Apps.
 
-- [typescript-package-scaffold](#typescript-package-scaffold)
-  - [API](#API)
-  - [Development](#Development)
-    - [Install dependencies:](#Install-dependencies)
-    - [Testing](#Testing)
-    - [Coverage](#Coverage)
-  - [License](#License)
+- [Features](#features)
+- [Development](#development)
+  - [Install dependencies:](#install-dependencies)
+  - [Testing](#testing)
+  - [Coverage](#coverage)
+- [License](#license)
 
-## API
+## Features
 
-*TO BE FILLED*
+* Mutable state to easily manipulate deeply nested objects
+* Observe changes and auto re-render
+* Action stack for partially editing
+* Built-in undo redo support
 
 ## Development
 
