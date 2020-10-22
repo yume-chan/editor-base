@@ -12,18 +12,20 @@ interface UndoNode {
 export class UndoManager {
   private scopeManager: ScopeManager;
 
-  private undoState?: UndoNode;
+  private undoState: UndoNode = { patches: [] };
 
   public constructor(scopeManager: ScopeManager) {
     this.scopeManager = scopeManager;
   }
 
   public get canUndo() {
-    return !!this.undoState;
+    this.scopeManager.observerManager.addDependency(this, ['canUndo']);
+    return this.undoState.prev;
   }
 
   public get canRedo() {
-    return !!this.undoState?.next;
+    this.scopeManager.observerManager.addDependency(this, ['canRedo']);
+    return this.undoState.next;
   }
 
   public push(patches: Diff[]) {
@@ -37,26 +39,31 @@ export class UndoManager {
     }
 
     this.undoState = node;
+    this.scopeManager.actionManager.notifyUndoStateChange();
   }
 
   public undo() {
-    const { undoState: current } = this;
-    if (!current) {
+    if (!this.canUndo) {
       return;
     }
 
+    const { undoState: { patches } } = this;
     this.scopeManager.actionManager.execute(() => {
-      const { patches } = current;
       for (let i = patches.length - 1; i >= 0; i -= 1) {
         patches[i].undo();
       }
-    });
+    }, true);
 
-    this.undoState = this.undoState?.prev;
+    this.undoState = this.undoState.prev!;
+    this.scopeManager.actionManager.notifyUndoStateChange();
   }
 
   public redo() {
-    const next = this.undoState?.next;
+    if (!this.canRedo) {
+      return;
+    }
+
+    const next = this.undoState.next!;
     if (!next) {
       return;
     }
@@ -65,8 +72,9 @@ export class UndoManager {
       for (const patch of next.patches) {
         patch.apply();
       }
-    });
+    }, true);
 
-    this.undoState = this.undoState!.next;
+    this.undoState = next;
+    this.scopeManager.actionManager.notifyUndoStateChange();
   }
 }

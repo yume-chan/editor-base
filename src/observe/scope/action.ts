@@ -46,7 +46,7 @@ export class ActionManager {
     this.scopeManager = scopeManager;
   }
 
-  public begin() {
+  public begin(isUndo = false) {
     this.stack.push(this.current);
 
     const state: ActionState = {
@@ -64,11 +64,8 @@ export class ActionManager {
 
       this.current = this.stack.pop()!;
 
-      if (this.current.global && state.diffList.length) {
-        this.scopeManager.undoManager.push(state.diffList);
-      }
-
       if (state.diffPaths.size && this.current.observers.size) {
+        console.log(state.diffList);
         console.group('action diff');
         for (const item of state.diffPaths.toArray()) {
           console.log(item[0], item[1]);
@@ -90,11 +87,15 @@ export class ActionManager {
           this.addDiff(diff);
         }
       }
+
+      if (!isUndo && this.current.global && state.diffList.length) {
+        this.scopeManager.undoManager.push(state.diffList);
+      }
     };
   }
 
-  public execute<T>(executor: () => T): T {
-    const end = this.begin();
+  public execute<T>(executor: () => T, isUndo = false): T {
+    const end = this.begin(isUndo);
     try {
       return executor();
     } finally {
@@ -120,6 +121,16 @@ export class ActionManager {
 
     const paths = new ObjectPaths();
     paths.add(diff.target, diff.path);
+    invokeObserversByDependency(
+      this.current.observers,
+      paths
+    );
+  }
+
+  /** @internal */ notifyUndoStateChange() {
+    const paths = new ObjectPaths();
+    paths.add(this.scopeManager.undoManager, ['canUndo']);
+    paths.add(this.scopeManager.undoManager, ['canRedo']);
     invokeObserversByDependency(
       this.current.observers,
       paths

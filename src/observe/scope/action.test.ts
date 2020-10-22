@@ -5,10 +5,11 @@ describe('Scope', () => {
     it('should reject change in global scope', () => {
       const manager = new ScopeManager();
       expect(() => manager.actionManager.addDiff({
-        apply() { },
+        type: '',
+        target: undefined,
         path: [],
+        apply() { },
         undo() { },
-        type: ''
       })).toThrowError();
     });
 

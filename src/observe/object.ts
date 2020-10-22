@@ -88,8 +88,11 @@ export function observe<T extends object>(
       return Reflect.ownKeys(state.target);
     },
     set(state, p: keyof T, value) {
-      state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
-      state.children.delete(p);
+      const hasOldValue = p in state.target;
+      if (hasOldValue) {
+        state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
+        state.children.delete(p);
+      }
 
       if (value?.[ObserveProxyStateSymbol]) {
         value = value[ObserveProxyStateSymbol].value;
@@ -103,7 +106,13 @@ export function observe<T extends object>(
         path: [...state.path, p],
         type: 'Object.set',
         apply() { handler.set!(state, p, value, undefined); },
-        undo() { handler.set!(state, p, oldValue, undefined); }
+        undo() {
+          if (hasOldValue) {
+            handler.set!(state, p, oldValue, undefined);
+          } else {
+            handler.deleteProperty!(state, p);
+          }
+        }
       });
       return true;
     },
