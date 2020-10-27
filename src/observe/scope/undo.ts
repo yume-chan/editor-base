@@ -52,7 +52,7 @@ export class UndoManager {
       for (let i = patches.length - 1; i >= 0; i -= 1) {
         patches[i].undo();
       }
-    }, true);
+    });
 
     this.undoState = this.undoState.prev!;
     this.scopeManager.actionManager.notifyUndoStateChange();
@@ -72,7 +72,7 @@ export class UndoManager {
       for (const patch of next.patches) {
         patch.apply();
       }
-    }, true);
+    });
 
     this.undoState = next;
     this.scopeManager.actionManager.notifyUndoStateChange();

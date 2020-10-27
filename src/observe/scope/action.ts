@@ -8,6 +8,10 @@ interface ActionState {
 
   diffList: Diff[];
 
+  trackUndo: boolean;
+
+  undoList: Diff[];
+
   diffPaths: ObjectPaths;
 
   observers: Set<Observer>;
@@ -39,6 +43,8 @@ export class ActionManager {
     global: true,
     observers: new Set(),
     diffList: [],
+    trackUndo: false,
+    undoList: [],
     diffPaths: new ObjectPaths(),
   };
 
@@ -46,12 +52,14 @@ export class ActionManager {
     this.scopeManager = scopeManager;
   }
 
-  public begin(isUndo = false) {
+  public begin(trackUndo = false) {
     this.stack.push(this.current);
 
     const state: ActionState = {
       global: false,
       diffList: [],
+      trackUndo,
+      undoList: [],
       observers: new Set(),
       diffPaths: new ObjectPaths(),
     };
@@ -88,14 +96,14 @@ export class ActionManager {
         }
       }
 
-      if (!isUndo && this.current.global && state.diffList.length) {
-        this.scopeManager.undoManager.push(state.diffList);
+      if (trackUndo && this.current.global && state.undoList.length) {
+        this.scopeManager.undoManager.push(state.undoList);
       }
     };
   }
 
-  public execute<T>(executor: () => T, isUndo = false): T {
-    const end = this.begin(isUndo);
+  public execute<T>(executor: () => T, trackUndo = false): T {
+    const end = this.begin(trackUndo);
     try {
       return executor();
     } finally {
@@ -118,6 +126,10 @@ export class ActionManager {
 
     this.current.diffList = mergeDiff(this.current.diffList, diff);
     this.current.diffPaths.add(diff.target, diff.path, true);
+
+    if (this.current.trackUndo) {
+      this.current.undoList = mergeDiff(this.current.undoList, diff);
+    }
 
     const paths = new ObjectPaths();
     paths.add(diff.target, diff.path);
