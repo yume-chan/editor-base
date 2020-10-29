@@ -16,10 +16,12 @@ describe('Object', () => {
 
     manager.actionManager.execute(() => {
       object.foo = 84;
-    });
+    }, true);
     expect(callback).toBeCalledTimes(1);
 
     manager.undoManager.undo();
     expect(callback).toBeCalledTimes(2);
+
+    JSON.stringify(object);
   });
 });

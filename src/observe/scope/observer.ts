@@ -51,12 +51,6 @@ export class ObserverManager {
       return fn();
     } finally {
       if (state.dependencies.size) {
-        // console.group('track finished:', (fn as any).displayName);
-        // for (const item of state.dependencies.toArray()) {
-        //   console.log(item[0], item[1]);
-        // }
-        // console.groupEnd();
-
         this.scopeManager.actionManager.addObserver(state);
       } else {
         this.scopeManager.actionManager.deleteObserver(state);

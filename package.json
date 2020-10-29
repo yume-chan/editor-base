@@ -1,5 +1,5 @@
 {
-  "name": "editor-core",
+  "name": "@yume-chan/observe-state",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yume-chan/typescript-package-scaffold.git"
+    "url": "git+https://github.com/yume-chan/observe-state.git"
   },
   "author": "Simon Chan",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yume-chan/typescript-package-scaffold/issues"
+    "url": "https://github.com/yume-chan/observe-state/issues"
   },
-  "homepage": "https://github.com/yume-chan/typescript-package-scaffold#readme",
+  "homepage": "https://github.com/yume-chan/observe-state#readme",
   "devDependencies": {
     "@types/jest": "26.0.14",
     "jest": "26.5.3",

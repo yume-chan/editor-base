@@ -1,20 +1,12 @@
-# Editor Base
+# Observe state
 
-Common building parts for any editor Apps.
+A [mobx](https://mobx.js.org/README.html) like library with build-in undo/redo tracking.
 
-- [Features](#features)
 - [Development](#development)
   - [Install dependencies:](#install-dependencies)
   - [Testing](#testing)
   - [Coverage](#coverage)
 - [License](#license)
-
-## Features
-
-* Mutable state to easily manipulate deeply nested objects
-* Observe changes and auto re-render
-* Action stack for partially editing
-* Built-in undo redo support
 
 ## Development
 

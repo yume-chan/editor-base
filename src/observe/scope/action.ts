@@ -73,13 +73,6 @@ export class ActionManager {
       this.current = this.stack.pop()!;
 
       if (state.diffPaths.size && this.current.observers.size) {
-        console.log(state.diffList);
-        console.group('action diff');
-        for (const item of state.diffPaths.toArray()) {
-          console.log(item[0], item[1]);
-        }
-        console.groupEnd();
-
         invokeObserversByDependency(
           this.current.observers,
           state.diffPaths
