@@ -22,6 +22,6 @@ describe('Object', () => {
     manager.undoManager.undo();
     expect(callback).toBeCalledTimes(2);
 
-    JSON.stringify(object);
+    JSON.stringify(observe({ foo: [] }, manager));
   });
 });

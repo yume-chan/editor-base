@@ -34,11 +34,11 @@ export function observe<T extends object>(
     state.hooks = new ArrayHooks(state as any);
   }
 
-  const handler: ProxyHandler<ObjectProxyState<T>> = {
+  const handler: ProxyHandler<T> = {
     defineProperty(_target, _p) {
       throw new Error('');
     },
-    deleteProperty(state, p: keyof T) {
+    deleteProperty(_, p: keyof T) {
       state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
       state.children.delete(p);
 
@@ -60,7 +60,7 @@ export function observe<T extends object>(
       });
       return true;
     },
-    get(state, p: keyof T | typeof ObserveProxyStateSymbol) {
+    get(_, p: keyof T | typeof ObserveProxyStateSymbol) {
       if (p === ObserveProxyStateSymbol) {
         return state;
       }
@@ -91,19 +91,19 @@ export function observe<T extends object>(
 
       return value;
     },
-    getOwnPropertyDescriptor(state, p) {
+    getOwnPropertyDescriptor(_, p) {
       return Reflect.getOwnPropertyDescriptor(state.target, p);
     },
-    getPrototypeOf(state) {
+    getPrototypeOf(_) {
       return Reflect.getPrototypeOf(state.target);
     },
-    has(state, p) {
+    has(_, p) {
       return p in state.target;
     },
-    ownKeys(state) {
+    ownKeys(_) {
       return Reflect.ownKeys(state.target);
     },
-    set(state, p: keyof T, value) {
+    set(_, p: keyof T, value) {
       const hasOldValue = p in state.target;
       if (hasOldValue) {
         state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
@@ -136,11 +136,11 @@ export function observe<T extends object>(
       });
       return true;
     },
-    setPrototypeOf(_target, _v) {
+    setPrototypeOf(_, _v) {
       throw new Error('can not set prototype of a proxy');
     },
   };
-  const { proxy, revoke } = Proxy.revocable(state, handler);
+  const { proxy, revoke } = Proxy.revocable(state.target, handler);
   state.rootProxy = proxy as any;
   state.dispose = revoke;
 
