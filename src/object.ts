@@ -98,6 +98,7 @@ export function observe<T extends object>(
       return Reflect.getPrototypeOf(state.target);
     },
     has(_, p) {
+      state.scopeManager.observerManager.addDependency(state.root, [...state.path, p]);
       return p in state.target;
     },
     ownKeys(_) {
