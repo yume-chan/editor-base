@@ -38,12 +38,12 @@ export function observe<T extends object>(
     defineProperty(_target, _p) {
       throw new Error('');
     },
-    deleteProperty(_, p: keyof T) {
+    deleteProperty(_, p: string | symbol): boolean {
       state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
       state.children.delete(p);
 
-      const oldValue = state.target[p];
-      delete state.target[p];
+      const oldValue = state.target[p as keyof T];
+      delete state.target[p as keyof T];
 
       state.scopeManager.actionManager.addDiff({
         target: state.root,
@@ -60,7 +60,7 @@ export function observe<T extends object>(
       });
       return true;
     },
-    get(_, p: keyof T | typeof ObserveProxyStateSymbol) {
+    get(_, p: string | symbol) {
       if (p === ObserveProxyStateSymbol) {
         return state;
       }
@@ -78,7 +78,7 @@ export function observe<T extends object>(
         return child;
       }
 
-      const value = state.target[p];
+      const value = state.target[p as keyof T];
       if (isObservable(value)) {
         const newChild = observe(value, state.scopeManager);
         const childState = newChild[ObserveProxyStateSymbol];
@@ -104,7 +104,7 @@ export function observe<T extends object>(
     ownKeys(_) {
       return Reflect.ownKeys(state.target);
     },
-    set(_, p: keyof T, value) {
+    set(_, p: string | symbol, value) {
       const hasOldValue = p in state.target;
       if (hasOldValue) {
         state.children.get(p)?.[ObserveProxyStateSymbol].dispose();
@@ -115,8 +115,8 @@ export function observe<T extends object>(
         value = value[ObserveProxyStateSymbol].target;
       }
 
-      const oldValue = state.target[p];
-      state.target[p] = value;
+      const oldValue = state.target[p as keyof T];
+      state.target[p as keyof T] = value;
 
       state.scopeManager.actionManager.addDiff({
         target: state.root,
